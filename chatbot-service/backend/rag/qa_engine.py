@@ -2,6 +2,7 @@ from .vector_db import search
 
 
 def get_answer(question):
+    print("DEBUG QUESTION:", question)
     q = question.lower()
 
     # =========================
@@ -62,7 +63,6 @@ def get_answer(question):
     for grade, values in grades.items():
         if grade in q:
 
-            # 🚨 si preguntan fechas → NO responder con precios
             if is_date_question:
                 continue
 
@@ -82,7 +82,6 @@ def get_answer(question):
     # =========================
     # 🔵 PDF 2 LOGIC (RIE)
     # =========================
-   # 📌 Qué ofrece RIE
     if "rie" in q and ("que ofrece" in q or "que incluye" in q or "informacion" in q):
         return (
             "El programa RIE (Ruta Integral Educativa) ofrece:\n\n"
@@ -92,36 +91,29 @@ def get_answer(question):
             "- Requiere que la familia envíe el almuerzo\n"
         )
 
-    # 📌 servicio circunstancial
     if "servicio circunstancial" in q:
-
         if "costo" in q or "cuesta" in q or "valor" in q:
             return "El servicio circunstancial tiene un costo de $11.000 por hora."
 
-        return "El servicio circunstancial es un servicio ocasional que se utiliza cuando se presenta alguna novedad, con previa notificación y sujeto a disponibilidad de cupo."
+        return "El servicio circunstancial es un servicio ocasional con previa notificación."
 
-    # 📌 servicio permanente
     if "servicio permanente" in q:
         return (
-            "El servicio permanente se ofrece durante todo el ciclo escolar en las siguientes modalidades:\n\n"
+            "El servicio permanente:\n"
             "- 7:00 AM a 1:00 PM → $431.000\n"
             "- 7:00 AM a 3:00 PM → $482.000\n"
             "- 7:00 AM a 5:00 PM → $530.000"
         )
 
-    # 📌 costos RIE
     if "rie" in q and ("costo" in q or "cuesta" in q or "valor" in q):
         return (
-            "El programa RIE tiene las siguientes opciones:\n\n"
-            "Servicio permanente:\n"
+            "RIE costos:\n"
             "- 7:00 AM a 1:00 PM → $431.000\n"
             "- 7:00 AM a 3:00 PM → $482.000\n"
-            "- 7:00 AM a 5:00 PM → $530.000\n\n"
-            "Servicio circunstancial:\n"
-            "- $11.000 por hora"
+            "- 7:00 AM a 5:00 PM → $530.000\n"
+            "- $11.000 por hora circunstancial"
         )
 
-    # 📌 fallback general RIE
     if "rie" in q or "programa rie" in q:
         response = "El programa RIE ofrece:\n\n"
 
@@ -139,12 +131,16 @@ def get_answer(question):
         return response
 
     # =========================
-    # 🔵 RAG FALLBACK (CHROMA)
+    # 🔵 RAG FALLBACK (CHROMA) - FIXED
     # =========================
-    context = search(question)
+    try:
+        context = search(question)
+    except Exception as e:
+        print("RAG ERROR:", str(e))
+        context = []
 
     if not context:
-        return "No encontré información en los documentos."
+        return "No encontré información en los documentos (RAG no disponible en este momento)."
 
     best_chunk = context[0]
 
@@ -156,23 +152,19 @@ def get_answer(question):
 
         response = ""
 
-        # 🎯 detectar grados
         ask_parvulos = "parvulos" in q
         ask_prejardin = "prejardin" in q or "pre-jardin" in q
         ask_jardin = "jardin" in q
         ask_transicion = "transicion" in q
 
-        # 📌 PARVULOS / PREJARDIN
         if ask_parvulos or ask_prejardin:
             if "02 de julio" in best_chunk:
                 response += "Parvulos y Prejardín:\n- 02 de julio de 2025\n- 7:00 AM a 9:00 AM\n\n"
 
-        # 📌 JARDIN / TRANSICION
         if ask_jardin or ask_transicion:
             if "03 de julio" in best_chunk:
                 response += "Jardín y Transición:\n- 03 de julio de 2025\n- 9:30 AM a 12:30 PM\n"
 
-        # 🔥 si no especifica grado → devuelve todo
         if not response:
             if "02 de julio" in best_chunk:
                 response += "Parvulos y Prejardín:\n- 02 de julio de 2025\n- 7:00 AM a 9:00 AM\n\n"
@@ -183,5 +175,4 @@ def get_answer(question):
         if response:
             return response.strip()
 
-    # fallback normal
     return f"Según los documentos oficiales de Melositos:\n\n{best_chunk}"
