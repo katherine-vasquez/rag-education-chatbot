@@ -10,14 +10,16 @@ from chromadb.utils import embedding_functions
 
 DB_PATH = os.path.join(os.getcwd(), "chroma_db")
 
-client = chromadb.PersistentClient(path=DB_PATH)
+client = chromadb.PersistentClient(
+    path=DB_PATH
+)
 
 collection = client.get_or_create_collection(
     name="melositos",
     embedding_function=embedding_functions.SentenceTransformerEmbeddingFunction()
 )
 
-# 🔒 lock para evitar problemas en concurrencia
+# 🔒 lock para evitar colisiones en Cloud Run
 _lock = threading.Lock()
 
 # =========================
@@ -28,7 +30,6 @@ def add_chunks(chunks):
     with _lock:
         for i, chunk in enumerate(chunks):
 
-            # 🚫 evitar basura
             if len(chunk.strip()) < 20:
                 continue
 
@@ -38,18 +39,22 @@ def add_chunks(chunks):
             )
 
 # =========================
-# 🔍 SEARCH OPTIMIZADO
+# 🔍 SEARCH OPTIMIZADO (ANTI 503)
 # =========================
 
 def search(query):
 
-    # 🚀 boost ligero (optimizado, no pesado)
+    # ⚡ boost ligero (NO pesado)
     boosted_query = f"{query} matricula fechas calendario"
 
-    results = collection.query(
-        query_texts=[boosted_query],
-        n_results=5   # 🔥 reducido para evitar 503
-    )
+    try:
+        results = collection.query(
+            query_texts=[boosted_query],
+            n_results=3   # 🔥 reducido para velocidad y evitar timeout
+        )
+    except Exception as e:
+        print("VECTOR DB ERROR:", e)
+        return []
 
     docs = results.get("documents", [[]])[0]
 
@@ -66,7 +71,6 @@ def search(query):
 
     q = normalize(query.lower())
 
-    # 🧠 detectar intención de fecha
     is_date_question = (
         "fecha" in q or
         "fechas" in q or
@@ -79,7 +83,6 @@ def search(query):
 
     for doc in docs:
         d = normalize(doc)
-
         score = 0
 
         # =========================
@@ -93,7 +96,6 @@ def search(query):
             if "03 de julio" in d:
                 score += 2000
 
-            # ❌ penalizar precios en fechas
             if "$" in d:
                 score -= 500
 
@@ -125,7 +127,7 @@ def search(query):
             score += 200
 
         # =========================
-        # 📉 PENALIZAR TEXTOS GRANDES
+        # 📉 PENALIZAR TEXTO LARGO
         # =========================
         if len(doc) > 1200:
             score -= 50
