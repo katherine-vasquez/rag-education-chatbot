@@ -11,6 +11,10 @@ class Question(BaseModel):
 def home():
     return {"status": "ok"}
 
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
+
 @app.post("/chat")
 def chat(question: Question):
     response = get_answer(question.message)
