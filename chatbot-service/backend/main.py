@@ -19,4 +19,15 @@ def health():
 
 @app.post("/chat")
 def chat(question: Question):
-    return {"response": "FAST API OK - NO RAG"}
+    try:
+        from backend.rag.qa_engine import get_answer
+
+        response = get_answer(question.message)
+
+        return {"response": response}
+
+    except Exception as e:
+        return {
+            "response": "Lo siento, el sistema RAG aún no está disponible.",
+            "error": str(e)
+        }
