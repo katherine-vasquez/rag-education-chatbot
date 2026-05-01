@@ -1,0 +1,8 @@
+version: "3.8"
+
+services:
+  chatbot:
+    build: ./chatbot-service
+    container_name: melositos_chatbot
+    ports:
+      - "5000:5000"
