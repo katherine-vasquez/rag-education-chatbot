@@ -19,7 +19,19 @@ def health():
 
 @app.post("/chat")
 def chat(question: Question):
-    # 🔥 SAFE MODE: desactivamos RAG para probar deploy
-    return {
-        "response": "test-ok"
-    }
+    try:
+        # 🔥 IMPORTACIÓN DIFERIDA (evita crash en startup)
+        from backend.rag.qa_engine import get_answer
+
+        response = get_answer(question.message)
+
+        return {
+            "response": response
+        }
+
+    except Exception as e:
+        # 🧠 fallback para que Cloud Run NUNCA se caiga
+        return {
+            "response": "Lo siento, el sistema RAG aún no está disponible.",
+            "error": str(e)
+        }
