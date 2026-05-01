@@ -40,7 +40,21 @@ Ejemplo:
 }
 🧩 Arquitectura
 
-El sistema sigue una arquitectura modular con componentes de procesamiento de documentos, base vectorial y API REST.
+## 🏗️ Arquitectura
+
+El sistema está diseñado siguiendo principios de arquitectura de microservicios, donde cada componente cumple una responsabilidad específica:
+
+- 📄 Servicio de Ingesta de Documentos (pdf_loader): procesa y divide los PDFs
+- 🧠 Servicio de Procesamiento (qa_engine): interpreta la intención del usuario
+- 🔎 Servicio de Búsqueda (vector_db): consulta la base vectorial (ChromaDB)
+- 🌐 API Gateway (FastAPI): expone los endpoints al usuario
+
+Aunque el sistema se despliega como una sola aplicación por simplicidad, los componentes están desacoplados y pueden escalarse como microservicios independientes en un entorno productivo.
+
+Esta arquitectura permite:
+- Escalabilidad
+- Separación de responsabilidades
+- Evolución hacia sistemas distribuidos (ej. Kafka, colas de eventos)
 
 Ver historias de usuario en /docs/historias_usuario.md
 
