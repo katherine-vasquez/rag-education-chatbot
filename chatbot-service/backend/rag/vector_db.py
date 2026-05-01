@@ -1,36 +1,54 @@
 import chromadb
 import re
+import os
+import threading
 from chromadb.utils import embedding_functions
 
-client = chromadb.PersistentClient(path="./chroma_db")
+# =========================
+# 🚀 CONFIG SEGURA CLOUD RUN
+# =========================
+
+DB_PATH = os.path.join(os.getcwd(), "chroma_db")
+
+client = chromadb.PersistentClient(path=DB_PATH)
 
 collection = client.get_or_create_collection(
     name="melositos",
     embedding_function=embedding_functions.SentenceTransformerEmbeddingFunction()
 )
 
+# 🔒 lock para evitar problemas en concurrencia
+_lock = threading.Lock()
+
+# =========================
+# 📥 INGESTA CHUNKS
+# =========================
 
 def add_chunks(chunks):
-    for i, chunk in enumerate(chunks):
+    with _lock:
+        for i, chunk in enumerate(chunks):
 
-        # 🔥 evitar basura
-        if len(chunk.strip()) < 20:
-            continue
+            # 🚫 evitar basura
+            if len(chunk.strip()) < 20:
+                continue
 
-        collection.add(
-            documents=[chunk],
-            ids=[f"chunk_{i}"]
-        )
+            collection.add(
+                documents=[chunk],
+                ids=[f"chunk_{i}"]
+            )
 
+# =========================
+# 🔍 SEARCH OPTIMIZADO
+# =========================
 
 def search(query):
 
-    # 🚀 BOOST de consulta (MUY IMPORTANTE)
-    boosted_query = query + " fechas matricula 02 de julio 03 de julio"
+    # 🚀 boost ligero (optimizado, no pesado)
+    boosted_query = f"{query} matricula fechas calendario"
 
     results = collection.query(
         query_texts=[boosted_query],
-        n_results=20
+        n_results=5   # 🔥 reducido para evitar 503
     )
 
     docs = results.get("documents", [[]])[0]
@@ -65,7 +83,7 @@ def search(query):
         score = 0
 
         # =========================
-        # 📅 PRIORIDAD FECHAS (MÁXIMA)
+        # 📅 PRIORIDAD FECHAS
         # =========================
         if is_date_question:
 
@@ -75,7 +93,7 @@ def search(query):
             if "03 de julio" in d:
                 score += 2000
 
-            # ❌ penalizar precios en preguntas de fechas
+            # ❌ penalizar precios en fechas
             if "$" in d:
                 score -= 500
 
@@ -107,7 +125,7 @@ def search(query):
             score += 200
 
         # =========================
-        # 📉 PENALIZAR TEXTO MUY GRANDE
+        # 📉 PENALIZAR TEXTOS GRANDES
         # =========================
         if len(doc) > 1200:
             score -= 50
