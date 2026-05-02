@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from backend.rag.qa_engine import get_answer
 
 app = FastAPI(title="Melositos Chatbot RAG")
 
@@ -25,22 +24,23 @@ def health():
 
 
 # =========================
-# 🤖 CHAT ENDPOINT (RAG)
+# 🤖 CHAT ENDPOINT (RAG SAFE PRODUCTION)
 # =========================
 @app.post("/chat")
 def chat(question: Question):
 
     try:
-        # 🚀 llamada directa al RAG (sin prints para producción)
-        response = get_answer(question.message)
+        # 🔥 IMPORT LOCAL (evita problemas en startup Cloud Run)
+        from backend.rag.qa_engine import get_answer
 
         return {
-            "response": response
+            "response": get_answer(question.message)
         }
 
     except Exception as e:
-        # 🧠 fallback seguro (evita 503 crash responses)
+        print("ERROR:", str(e))
+
+        # 🧠 fallback seguro (NUNCA rompe Cloud Run)
         return {
-            "response": "Error interno del sistema RAG",
-            "error": str(e)
+            "response": "Error interno del sistema RAG"
         }
